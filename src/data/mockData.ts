@@ -1,5 +1,15 @@
 import { Product, Category } from "@/types/product";
 
+export const tags = [
+  { id: "special-offer", name: "Special Offer" },
+  { id: "organic", name: "Organic" },
+  { id: "new", name: "New" },
+  { id: "vegan", name: "Vegan" },
+  { id: "vegetarian", name: "Vegetarian" },
+  { id: "gluten-free", name: "Gluten Free" },
+  { id: "5-days-msl", name: "5 Days MSL" },
+];
+
 export const categories: Category[] = [
   // Level 1: Main categories
   { 
@@ -190,6 +200,7 @@ export const mockProducts: Product[] = [
     unit: "jar",
     stock: 250,
     inStock: true,
+    tags: ["organic", "vegetarian", "vegan"],
   },
   {
     id: "2",
@@ -206,6 +217,7 @@ export const mockProducts: Product[] = [
     unit: "jar",
     stock: 180,
     inStock: true,
+    tags: ["vegetarian", "new"],
   },
   {
     id: "3",
@@ -286,6 +298,7 @@ export const mockProducts: Product[] = [
     unit: "carton",
     stock: 145,
     inStock: true,
+    tags: ["5-days-msl", "vegan"],
   },
   {
     id: "8",
@@ -334,5 +347,6 @@ export const mockProducts: Product[] = [
     unit: "bag",
     stock: 280,
     inStock: true,
+    tags: ["special-offer", "vegan"],
   },
 ];

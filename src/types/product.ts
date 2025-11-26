@@ -13,6 +13,7 @@ export interface Product {
   unit?: string;
   stock: number;
   inStock: boolean;
+  tags?: string[];
 }
 
 export interface Category {

@@ -2,21 +2,38 @@ import { useState } from "react";
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { ProductCard } from "@/components/ProductCard";
+import { ProductCardList } from "@/components/ProductCardList";
+import { ShopCarousel } from "@/components/ShopCarousel";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { mockProducts, categories } from "@/data/mockData";
-import { SlidersHorizontal, ChevronDown, ChevronRight, X } from "lucide-react";
+import { mockProducts, categories, tags } from "@/data/mockData";
+import { SlidersHorizontal, ChevronDown, ChevronRight, Grid3x3, List, Search } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const Shop = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("featured");
   const [openCategories, setOpenCategories] = useState<string[]>([]);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 32;
 
   const toggleCategory = (categoryId: string) => {
     setOpenCategories(prev =>
@@ -58,12 +75,31 @@ const Shop = () => {
     }
   };
 
-  const filteredProducts = selectedCategories.length > 0
-    ? mockProducts.filter(p => 
-        selectedCategories.includes(p.category) || 
-        selectedCategories.includes(p.subcategory || '')
-      )
-    : mockProducts;
+  let filteredProducts = mockProducts;
+
+  // Filter by categories
+  if (selectedCategories.length > 0) {
+    filteredProducts = filteredProducts.filter(p => 
+      selectedCategories.includes(p.category) || 
+      selectedCategories.includes(p.subcategory || '')
+    );
+  }
+
+  // Filter by tags
+  if (selectedTags.length > 0) {
+    filteredProducts = filteredProducts.filter(p =>
+      p.tags?.some(tag => selectedTags.includes(tag))
+    );
+  }
+
+  // Filter by search query
+  if (searchQuery.trim()) {
+    filteredProducts = filteredProducts.filter(p =>
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
@@ -74,9 +110,20 @@ const Shop = () => {
       case "name":
         return a.name.localeCompare(b.name);
       default:
-      return 0;
+        return 0;
     }
   });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentProducts = sortedProducts.slice(startIndex, endIndex);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const FilterContent = () => (
     <>
@@ -195,6 +242,33 @@ const Shop = () => {
 
         <Separator />
 
+        {/* Tags */}
+        <div>
+          <h3 className="font-semibold mb-3">Tags</h3>
+          <div className="space-y-2">
+            {tags.map((tag) => (
+              <div key={tag.id} className="flex items-center space-x-2">
+                <Checkbox
+                  id={tag.id}
+                  checked={selectedTags.includes(tag.id)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedTags([...selectedTags, tag.id]);
+                    } else {
+                      setSelectedTags(selectedTags.filter(t => t !== tag.id));
+                    }
+                  }}
+                />
+                <Label htmlFor={tag.id} className="text-sm font-normal cursor-pointer">
+                  {tag.name}
+                </Label>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Stock Status */}
         <div>
           <h3 className="font-semibold mb-3">Availability</h3>
@@ -215,7 +289,15 @@ const Shop = () => {
         </div>
       </div>
 
-      <Button variant="outline" className="w-full mt-6" onClick={() => setSelectedCategories([])}>
+      <Button 
+        variant="outline" 
+        className="w-full mt-6" 
+        onClick={() => {
+          setSelectedCategories([]);
+          setSelectedTags([]);
+          setSearchQuery("");
+        }}
+      >
         Clear Filters
       </Button>
     </>
@@ -226,6 +308,9 @@ const Shop = () => {
       <Header />
       
       <main className="flex-1 container mx-auto px-4 py-4 md:py-8">
+        {/* Carousel */}
+        <ShopCarousel />
+
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2">All Products</h1>
           <p className="text-sm md:text-base text-muted-foreground">Browse our complete range of wholesale food products</p>
@@ -239,9 +324,9 @@ const Shop = () => {
                 <Button variant="outline" className="w-full">
                   <SlidersHorizontal className="h-4 w-4 mr-2" />
                   Filters
-                  {selectedCategories.length > 0 && (
+                  {(selectedCategories.length > 0 || selectedTags.length > 0) && (
                     <span className="ml-2 bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs">
-                      {selectedCategories.length}
+                      {selectedCategories.length + selectedTags.length}
                     </span>
                   )}
                 </Button>
@@ -261,35 +346,135 @@ const Shop = () => {
 
           {/* Products Grid */}
           <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <p className="text-sm md:text-base text-muted-foreground">
-                Showing {sortedProducts.length} products
-              </p>
-              <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="Sort by" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="featured">Featured</SelectItem>
-                  <SelectItem value="name">Name (A-Z)</SelectItem>
-                  <SelectItem value="price-low">Price: Low to High</SelectItem>
-                  <SelectItem value="price-high">Price: High to Low</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Search Bar */}
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Search products..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="pl-10 pr-4 h-11 w-full"
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6">
-              {sortedProducts.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+              <p className="text-sm md:text-base text-muted-foreground">
+                Showing {currentProducts.length} of {sortedProducts.length} products
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex border border-border rounded-md">
+                  <Button
+                    variant={viewMode === "grid" ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setViewMode("grid")}
+                    className="rounded-none"
+                  >
+                    <Grid3x3 className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === "list" ? "secondary" : "ghost"}
+                    size="icon"
+                    onClick={() => setViewMode("list")}
+                    className="rounded-none"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full sm:w-48">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="featured">Featured</SelectItem>
+                    <SelectItem value="name">Name (A-Z)</SelectItem>
+                    <SelectItem value="price-low">Price: Low to High</SelectItem>
+                    <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
+            {viewMode === "grid" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-6">
+                {currentProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {currentProducts.map((product) => (
+                  <ProductCardList key={product.id} product={product} />
+                ))}
+              </div>
+            )}
 
             {sortedProducts.length === 0 && (
               <div className="text-center py-12 md:py-16">
                 <p className="text-base md:text-lg text-muted-foreground">No products found matching your filters.</p>
-                <Button variant="link" onClick={() => setSelectedCategories([])} className="mt-4">
+                <Button 
+                  variant="link" 
+                  onClick={() => {
+                    setSelectedCategories([]);
+                    setSelectedTags([]);
+                    setSearchQuery("");
+                  }} 
+                  className="mt-4"
+                >
                   Clear all filters
                 </Button>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {sortedProducts.length > 0 && totalPages > 1 && (
+              <div className="mt-8">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious 
+                        onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                        className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                    
+                    {[...Array(totalPages)].map((_, i) => {
+                      const page = i + 1;
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink
+                              onClick={() => handlePageChange(page)}
+                              isActive={currentPage === page}
+                              className="cursor-pointer"
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <PaginationEllipsis key={page} />;
+                      }
+                      return null;
+                    })}
+
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
+                        className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
             )}
           </div>
